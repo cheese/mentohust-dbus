@@ -56,7 +56,7 @@ AS_CASE([$host_os],
         [AC_ARG_WITH([dbus], [AC_HELP_STRING([ --without-dbus], [Don't use D-Bus support])], [], [with_dbus=yes])])
 AS_IF([test "x$with_dbus" = "xno"],
       [AC_DEFINE(NO_DBUS, [], [Define NO_DBUS to disable D-Bus support])][with_gtk2=no],
-      [PKG_CHECK_MODULES([DBUS], [dbus-glib-1]), [], [AC_DEFINE(NO_DBUS, [], [Define NO_DBUS to disable D-Bus support])][with_dbus=no][with_gtk2=no]])
+      [PKG_CHECK_MODULES([DBUS], [dbus-1], [], [AC_DEFINE(NO_DBUS, [], [Define NO_DBUS to disable D-Bus support])][with_dbus=no][with_gtk2=no])])
 
 AS_IF([test "x$with_gtk2" = "xno"],
       [], [PKG_CHECK_MODULES([GTK2], [gtk+-2.0])])
