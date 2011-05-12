@@ -6,10 +6,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: mentohust 0.3.1\n"
 "Report-Msgid-Bugs-To: http://code.google.com/p/mentohust/issues/list\n"
-"POT-Creation-Date: 2010-05-14 20:17+0800\n"
+"POT-Creation-Date: 2011-05-12 08:34+0800\n"
 "PO-Revision-Date: 2010-04-22 20:08+0800\n"
 "Last-Translator: <mentohust_mail@ehust.co.cc>\n"
 "Language-Team: HustMoon Studio\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -39,93 +40,93 @@ msgstr "!! Failed To Get libnotify function : %s\n"
 msgid "!! 初始化libnotify失败。\n"
 msgstr "!! Uable to initlize libnotify.\n"
 
-#: src/mentohust.c:65
-#, c-format
-msgid "!! 捕获数据包失败，请检查网络连接！\n"
+#: src/mentohust.c:66
+#, fuzzy, c-format
+msgid "!! 捕获数据包失败，请检查网络连接！3秒后重连...\n"
 msgstr "!! Failed to capture packets, please check network connections!\n"
 
-#: src/mentohust.c:67 src/mentohust.c:103 src/myconfig.c:171
+#: src/mentohust.c:68 src/mentohust.c:106 src/myconfig.c:171
 #: src/myconfig.c:183 src/myconfig.c:216 src/myconfig.c:595
 msgid "MentoHUST - 错误提示"
 msgstr "MentoHUST - Error Tips"
 
-#: src/mentohust.c:68
+#: src/mentohust.c:69
 msgid "捕获数据包失败，请检查网络连接！"
 msgstr "Failed to capture packets, please check network connections!"
 
-#: src/mentohust.c:91
+#: src/mentohust.c:94
 #, c-format
 msgid ">> 认证已退出。\n"
 msgstr ">> Authentication exited.\n"
 
-#: src/mentohust.c:101
+#: src/mentohust.c:104
 #, c-format
 msgid "!! 发送数据包失败, 请检查网络连接！\n"
 msgstr "!! Failed to send packets, please check network connections!\n"
 
-#: src/mentohust.c:104
+#: src/mentohust.c:107
 msgid "发送数据包失败, 请检查网络连接！"
 msgstr "Failed to capture packets, please check network connections!"
 
-#: src/mentohust.c:129
+#: src/mentohust.c:132
 #, c-format
 msgid "** 认证MAC:\t%s\n"
 msgstr "** Server MAC:\t%s\n"
 
-#: src/mentohust.c:139
+#: src/mentohust.c:142
 #, c-format
 msgid ">> 认证成功!\n"
 msgstr ">> Authentication succeed!\n"
 
-#: src/mentohust.c:158 src/mystate.c:107
+#: src/mentohust.c:161 src/mystate.c:107
 #, c-format
 msgid ">> 认证掉线，开始重连!\n"
 msgstr ">> Authentication lost, begin reconnect!\n"
 
-#: src/mentohust.c:162
+#: src/mentohust.c:165
 #, c-format
 msgid ">> 认证失败!\n"
 msgstr ">> Authentication failed!\n"
 
-#: src/mentohust.c:166
+#: src/mentohust.c:169
 #, c-format
 msgid ">> 连续认证失败%u次，退出认证。\n"
 msgstr ">> Authentication failed %u times, exited.\n"
 
-#: src/mentohust.c:180
+#: src/mentohust.c:183
 #, c-format
 msgid "** 网关MAC:\t%s\n"
 msgstr "** Gateway MAC:\t%s\n"
 
-#: src/mentohust.c:185
+#: src/mentohust.c:188
 #, c-format
 msgid "** ARP欺骗:\t%s\n"
 msgstr "** ARP cheat:\t%s\n"
 
-#: src/mentohust.c:188
+#: src/mentohust.c:191
 #, c-format
 msgid "欺骗源: %s"
 msgstr "Cheat Source: %s"
 
-#: src/mentohust.c:189
+#: src/mentohust.c:192
 msgid "MentoHUST - ARP提示"
 msgstr "MentoHUST - ARP Tips"
 
-#: src/mentohust.c:209 src/mentohust.c:248
+#: src/mentohust.c:212 src/mentohust.c:251
 #, c-format
 msgid "$$ 系统提示:\t%s\n"
 msgstr "$$ Server Msg:\t%s\n"
 
-#: src/mentohust.c:211 src/mentohust.c:250
+#: src/mentohust.c:214 src/mentohust.c:253
 msgid "MentoHUST - 系统提示"
 msgstr "MentoHUST - Server Msg"
 
-#: src/mentohust.c:228
+#: src/mentohust.c:231
 #, c-format
 msgid "$$ 计费提示:\t%s\n"
 msgstr "$$ Money Msg:\t%s\n"
 
-#: src/mentohust.c:230
+#: src/mentohust.c:233
 msgid "MentoHUST - 计费提示"
 msgstr "MentoHUST - Money Msg"
 
@@ -464,7 +465,7 @@ msgstr ""
 msgid "** V2校验值:\t%s\n"
 msgstr ""
 
-#: src/myfunc.c:566
+#: src/myfunc.c:565
 msgid "!! Ping主机出错，关闭该功能"
 msgstr ""
 
@@ -516,4 +517,36 @@ msgstr ""
 #: src/mystate.c:274
 #, c-format
 msgid ">> 发送心跳包以保持在线...\n"
+msgstr ""
+
+#: src/gtk2/mentohust-gtk2.c:58
+msgid "欢迎使用 Mentohust 认证程序"
+msgstr ""
+
+#: src/gtk2/mentohust-gtk2.c:65
+msgid "用户名"
+msgstr ""
+
+#: src/gtk2/mentohust-gtk2.c:68
+msgid "密码"
+msgstr ""
+
+#: src/gtk2/mentohust-gtk2.c:85
+msgid "保存密码"
+msgstr ""
+
+#: src/gtk2/mentohust-gtk2.c:93
+msgid "连接"
+msgstr ""
+
+#: src/gtk2/mentohust-gtk2.c:96
+msgid "退出"
+msgstr ""
+
+#: src/gtk2/mentohust-gtk2.c:100
+msgid "消息记录"
+msgstr ""
+
+#: src/gtk2/mentohust-gtk2.c:103
+msgid "高级设置"
 msgstr ""

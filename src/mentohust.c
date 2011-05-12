@@ -26,7 +26,7 @@ extern pcap_t *hPcap;
 extern volatile int state;
 extern u_char *fillBuf;
 extern const u_char *capBuf;
-extern unsigned startMode, dhcpMode, maxFail;
+extern unsigned restartWait, startMode, dhcpMode, maxFail;
 extern u_char destMAC[];
 extern int lockfd;
 #ifndef NO_NOTIFY
@@ -57,17 +57,20 @@ int main(int argc, char **argv)
 	signal(SIGQUIT, sig_handle);	/* Ctrl+\ */
 	signal(SIGTSTP, sig_handle);	/* Ctrl+Z */
 	signal(SIGTERM, sig_handle);	/* 被结束时 */
-	if (dhcpMode == 3)	  /* 认证前DHCP */
-		switchState(ID_DHCP);
-	else
+	while (1) {
+		if (dhcpMode == 3)	  /* 认证前DHCP */
+			switchState(ID_DHCP);
+		else
 		switchState(ID_START);	/* 开始认证 */
-	if (-1 == pcap_loop(hPcap, -1, pcap_handle, NULL)) { /* 开始捕获数据包 */
-		printf(_("!! 捕获数据包失败，请检查网络连接！\n"));
+		if (-1 == pcap_loop(hPcap, -1, pcap_handle, NULL)) { /* 开始捕获数据包 */
+			printf(_("!! 捕获数据包失败，请检查网络连接！%d秒后重连...\n"), restartWait);
 #ifndef NO_NOTIFY
-		if (showNotify && show_notify(_("MentoHUST - 错误提示"),
-			_("捕获数据包失败，请检查网络连接！"), 1000*showNotify) < 0)
-			showNotify = 0;
+			if (showNotify && show_notify(_("MentoHUST - 错误提示"),
+				_("捕获数据包失败，请检查网络连接！"), 1000*showNotify) < 0)
+				showNotify = 0;
 #endif
+			sleep(restartWait);
+		}
 	}
 	exit(EXIT_FAILURE);
 }
