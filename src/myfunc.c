@@ -12,6 +12,7 @@
 #define HAVE_ICONV_H
 #endif
 
+#include "mentohust.h"
 #include "myfunc.h"
 #include "i18n.h"
 #include "md5.h"
@@ -51,6 +52,10 @@ u_char gateMAC[6];	/* 网关MAC */
 #endif
 
 extern char password[];
+#ifdef LOCAL_CONF
+extern char passwordLocal[][ACCOUNT_SIZE];
+extern int locaUserFlag;
+#endif
 extern char nic[];
 extern char dataFile[];
 extern u_int32_t ip, mask, gateway, dns, pingHost;
@@ -503,9 +508,19 @@ void getEchoKey(const u_char *capBuf)
 u_char *checkPass(u_char id, const u_char *md5Seed, int seedLen)
 {
 	u_char md5Src[80];
+#ifdef LOCAL_CONF
+	int md5Len = strlen(passwordLocal[locaUserFlag]);
+	/*MENTOHUST_LOG ("password length : %d", md5Len);*/
+#else
 	int md5Len = strlen(password);
+#endif
 	md5Src[0] = id;
+#ifdef LOCAL_CONF
+	memcpy(md5Src+1, passwordLocal[locaUserFlag], md5Len);
+	/*MENTOHUST_LOG ("password : %s", passwordLocal[locaUserFlag]);*/
+#else
 	memcpy(md5Src+1, password, md5Len);
+#endif
 	md5Len++;
 	if (startMode % 3 == 2)	/* 赛尔？ */
 	{

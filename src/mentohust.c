@@ -11,6 +11,7 @@
 #include "config.h"
 #endif
 
+#include "mentohust.h"
 #include "myconfig.h"
 #include "i18n.h"
 #include "mystate.h"

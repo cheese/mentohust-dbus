@@ -14,6 +14,7 @@ static const char *VERSION = "0.3.1";
 static const char *PACKAGE_BUGREPORT = "http://code.google.com/p/mentohust/issues/list";
 #endif
 
+#include "mentohust.h"
 #include "myconfig.h"
 #include "i18n.h"
 #include "myini.h"
@@ -26,7 +27,7 @@ static const char *PACKAGE_BUGREPORT = "http://code.google.com/p/mentohust/issue
 #include <unistd.h>
 #include <sys/stat.h>
 
-#define ACCOUNT_SIZE		65	/* 用户名密码长度*/
+/*#define ACCOUNT_SIZE		65	[> 用户名密码长度<]*/
 #define NIC_SIZE			16	/* 网卡名最大长度 */
 #define MAX_PATH			255	/* FILENAME_MAX */
 #define D_TIMEOUT			8	/* 默认超时间隔 */
@@ -56,6 +57,13 @@ extern int bufType;	/*0内置xrgsu 1内置Win 2仅文件 3文件+校验*/
 extern u_char version[];	/* 版本 */
 char userName[ACCOUNT_SIZE] = "";	/* 用户名 */
 char password[ACCOUNT_SIZE] = "";	/* 密码 */
+#ifdef LOCAL_CONF
+#define ACCOUNT_NUM 10
+char userNameLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的用户名 */
+char passwordLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的的密码 */
+int user_count = 0; /* 记录读入的账户数 */
+int locaUserFlag; /* 指定要使用的账户id */
+#endif
 char nic[NIC_SIZE] = "";	/* 网卡名 */
 char dataFile[MAX_PATH] = "";	/* 数据文件 */
 char dhcpScript[MAX_PATH] = "";	/* DHCP脚本 */
@@ -76,6 +84,9 @@ pcap_t *hPcap = NULL;	/* Pcap句柄 */
 int lockfd = -1;	/* 锁文件描述符 */
 
 static int readFile(int *daemonMode);	/* 读取配置文件来初始化 */
+#ifdef LOCAL_CONF
+static int readLocalFile(char *filepath);	/* 读取当前用户的配置文件 返回读取的账户数*/
+#endif
 static void readArg(char argc, char **argv, int *saveFlag, int *exitFlag, int *daemonMode);	/* 读取命令行参数来初始化 */
 static void showHelp(const char *fileName);	/* 显示帮助信息 */
 static int getAdapter();	/* 查找网卡名 */
@@ -164,6 +175,12 @@ void initConfig(int argc, char **argv)
 			"人到华中大，有甜亦有辣。明德厚学地，求是创新家。\n"
 			"Bug report to %s\n\n"), VERSION, PACKAGE_BUGREPORT);
 	saveFlag = (readFile(&daemonMode)==0 ? 0 : 1);
+
+#ifdef LOCAL_CONF
+	if(readLocalFile("/home/dave/.mentohust.conf") == -1)
+		MENTOHUST_LOG ( "failed to open local configuration\n" );
+#endif
+
 	readArg(argc, argv, &saveFlag, &exitFlag, &daemonMode);
 #ifndef NO_DYLOAD
 	if (load_libpcap() == -1) {
@@ -219,6 +236,8 @@ void initConfig(int argc, char **argv)
 #endif
 		exit(EXIT_FAILURE);
 	}
+
+
 	if (saveFlag)
 		saveConfig(daemonMode);
 }
@@ -226,7 +245,7 @@ void initConfig(int argc, char **argv)
 static int readFile(int *daemonMode)
 {
 	char tmp[16], *buf;
-	if (loadFile(&buf, CFG_FILE) < 0)
+	if (loadFile(&buf, CFG_FILE) < 0) /*open CFG_FILE, read the content of configuration file into buf and close it*/
 		return -1;
 	getString(buf, "MentoHUST", "Username", "", userName, sizeof(userName));
 #ifdef NO_ENCODE_PASS
@@ -279,6 +298,30 @@ static int readFile(int *daemonMode)
 	free(buf);
 	return 0;
 }
+
+#ifdef LOCAL_CONF
+static int readLocalFile(char *filepath)
+{
+	char *buf, userid_tail[4], 
+			 userid[8] = "user1";
+	if (loadFile(&buf, filepath) < 0)
+		return -1;
+
+	while(getString(buf, userid, "Username", "", userNameLocal[user_count], ACCOUNT_SIZE) != -1)
+	{
+		getString(buf, userid, "Password", "", passwordLocal[user_count], ACCOUNT_SIZE);
+
+		/*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
+
+		user_count++;
+		sprintf(userid_tail, "%d", user_count+1);
+		strncpy(&userid[4], userid_tail, 4);
+	}
+
+	free(buf);
+	return user_count;
+}
+#endif
 
 static void readArg(char argc, char **argv, int *saveFlag, int *exitFlag, int *daemonMode)
 {
@@ -441,8 +484,17 @@ static void printConfig()
 {
 	char *addr[] = {_("标准"), _("锐捷"), _("赛尔")};
 	char *dhcp[] = {_("不使用"), _("二次认证"), _("认证后"), _("认证前")};
+#ifdef LOCAL_CONF
+	int i = 0;
+	printf(_("** 默认账户:\t%s\n"), userName);
+	for (i = 0; i<user_count; i++)
+	{
+		MENTOHUST_LOG ("账户%d：%s", i+1, userNameLocal[i]);
+	}
+#else
 	printf(_("** 用户名:\t%s\n"), userName);
 	/* printf("** 密码:\t%s\n", password); */
+#endif
 	printf(_("** 网卡: \t%s\n"), nic);
 	if (gateway)
 		printf(_("** 网关地址:\t%s\n"), formatIP(gateway));

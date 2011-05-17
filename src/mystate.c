@@ -7,6 +7,7 @@
 * 作	者：HustMoon@BYHH
 * 邮	箱：www.ehust@gmail.com
 */
+#include "mentohust.h"
 #include "mystate.h"
 #include "i18n.h"
 #include "myfunc.h"
@@ -24,6 +25,10 @@ static int sendCount = 0;	/* 同一阶段发包计数 */
 
 extern const u_char STANDARD_ADDR[];
 extern char userName[];
+#ifdef LOCAL_CONF
+extern char userNameLocal[][ACCOUNT_SIZE];
+extern int locaUserFlag;
+#endif
 extern unsigned startMode;
 extern unsigned dhcpMode;
 extern u_char localMAC[], destMAC[];
@@ -181,7 +186,13 @@ static int sendStartPacket()
 
 static int sendIdentityPacket()
 {
+#ifdef LOCAL_CONF
+	int nameLen = strlen(userNameLocal[locaUserFlag]);
+	MENTOHUST_LOG ("当前使用账户：");
+	MENTOHUST_LOG ("账户%d：%s", locaUserFlag+1, userNameLocal[locaUserFlag]);
+#else
 	int nameLen = strlen(userName);
+#endif
 	if (startMode%3 == 2)	/* 赛尔 */
 	{
 		if (sendCount == 0)
@@ -194,7 +205,11 @@ static int sendIdentityPacket()
 			sendPacket[0x17] = 0x01;
 			fillCernetAddr(sendPacket);
 			memcpy(sendPacket+0x28, "03.02.05", 8);
+#ifdef LOCAL_CONF
+			memcpy(sendPacket+0x30, userNameLocal[locaUserFlag], nameLen);
+#else
 			memcpy(sendPacket+0x30, userName, nameLen);
+#endif
 			setTimer(timeout);
 		}
 		sendPacket[0x13] = capBuf[0x13];
@@ -204,12 +219,20 @@ static int sendIdentityPacket()
 	{
 		printf(_(">> 发送用户名...\n"));
 		fillEtherAddr(0x888E0100);
+#ifdef LOCAL_CONF
+		nameLen = strlen(userNameLocal[locaUserFlag]);
+#else
 		nameLen = strlen(userName);
+#endif
 		*(u_int16_t *)(sendPacket+0x14) = *(u_int16_t *)(sendPacket+0x10) = htons(nameLen+5);
 		sendPacket[0x12] = 0x02;
 		sendPacket[0x13] = capBuf[0x13];
 		sendPacket[0x16] = 0x01;
+#ifdef LOCAL_CONF
+		memcpy(sendPacket+0x17, userNameLocal[locaUserFlag], nameLen);
+#else
 		memcpy(sendPacket+0x17, userName, nameLen);
+#endif
 		memcpy(sendPacket+0x17+nameLen, fillBuf, fillSize);
 		setTimer(timeout);
 	}
@@ -218,7 +241,11 @@ static int sendIdentityPacket()
 
 static int sendChallengePacket()
 {
+#ifdef LOCAL_CONF
+	int nameLen = strlen(userNameLocal[locaUserFlag]);
+#else
 	int nameLen = strlen(userName);
+#endif
 	if (startMode%3 == 2)	/* 赛尔 */
 	{
 		if (sendCount == 0)
@@ -231,7 +258,12 @@ static int sendChallengePacket()
 			sendPacket[0x16] = 0x04;
 			sendPacket[0x17] = 16;
 			memcpy(sendPacket+0x18, checkPass(capBuf[0x13], capBuf+0x18, capBuf[0x17]), 16);
+#ifdef LOCAL_CONF
+			memcpy(sendPacket+0x28, userNameLocal[locaUserFlag], nameLen);
+			MENTOHUST_LOG ("userName length: %d", nameLen)
+#else
 			memcpy(sendPacket+0x28, userName, nameLen);
+#endif
 			setTimer(timeout);
 		}
 		return pcap_sendpacket(hPcap, sendPacket, nameLen+40);
@@ -247,7 +279,11 @@ static int sendChallengePacket()
 		sendPacket[0x16] = 0x04;
 		sendPacket[0x17] = 16;
 		memcpy(sendPacket+0x18, checkPass(capBuf[0x13], capBuf+0x18, capBuf[0x17]), 16);
+#ifdef LOCAL_CONF
+		memcpy(sendPacket+0x28, userNameLocal[locaUserFlag], nameLen);
+#else
 		memcpy(sendPacket+0x28, userName, nameLen);
+#endif
 		memcpy(sendPacket+0x28+nameLen, fillBuf, fillSize);
 		setTimer(timeout);
 	}
