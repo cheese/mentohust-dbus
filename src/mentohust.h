@@ -23,5 +23,6 @@
 #define LOCAL_CONF 1
 
 #define ACCOUNT_SIZE 65
+#define ACCOUNT_NUM 20
 
 #endif

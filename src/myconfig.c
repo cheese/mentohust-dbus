@@ -58,11 +58,13 @@ extern u_char version[];	/* 版本 */
 char userName[ACCOUNT_SIZE] = "";	/* 用户名 */
 char password[ACCOUNT_SIZE] = "";	/* 密码 */
 #ifdef LOCAL_CONF
-#define ACCOUNT_NUM 10
-char userNameLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的用户名 */
+char userNameLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的用户名。
+																												由于配置文件的错误编写，数组里
+																												面可能用空字符串，在添加用户的
+																												时候注意要遍历检查。*/
 char passwordLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的的密码 */
 int user_count = 0; /* 记录读入的账户数 */
-int locaUserFlag; /* 指定要使用的账户id */
+int locaUserFlag = 0; /* 指定要使用的账户id */
 #endif
 char nic[NIC_SIZE] = "";	/* 网卡名 */
 char dataFile[MAX_PATH] = "";	/* 数据文件 */
@@ -206,11 +208,21 @@ void initConfig(int argc, char **argv)
 	}
 	if (userName[0]=='\0' || password[0]=='\0')	/* 未写用户名密码？ */
 	{
+#ifdef LOCAL_CONF
+		if (userNameLocal[0][0]=='\0') {
+#endif
 		saveFlag = 1;
 		printf(_("?? 请输入用户名: "));
 		scanf("%s", userName);
 		printf(_("?? 请输入密码: "));
 		scanf("%s", password);
+#ifdef LOCAL_CONF
+		} else {
+		/*set the first local account as default account*/
+			strncpy(userName, userNameLocal[0], ACCOUNT_SIZE);
+			strncpy(password, passwordLocal[0], ACCOUNT_SIZE);
+		}
+#endif
 		printf(_("?? 请选择组播地址(0标准 1锐捷私有 2赛尔): "));
 		scanf("%u", &startMode);
 		startMode %= 3;
@@ -303,19 +315,27 @@ static int readFile(int *daemonMode)
 static int readLocalFile(char *filepath)
 {
 	char *buf, userid_tail[4], 
-			 userid[8] = "user1";
+			 userid[8] = "user";
+	int read_count = 0;
+
 	if (loadFile(&buf, filepath) < 0)
 		return -1;
 
-	while(getString(buf, userid, "Username", "", userNameLocal[user_count], ACCOUNT_SIZE) != -1)
+	read_count = getInt(buf, "MentoHUST", "AccountCount", 0);
+	/*MENTOHUST_LOG ("AccountCount read:%d", read_count);*/
+
+	for(user_count = 0; user_count < read_count; user_count++)
 	{
-		getString(buf, userid, "Password", "", passwordLocal[user_count], ACCOUNT_SIZE);
-
-		/*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
-
-		user_count++;
 		sprintf(userid_tail, "%d", user_count+1);
 		strncpy(&userid[4], userid_tail, 4);
+		if(getString(buf, userid, "Username", "", userNameLocal[user_count], ACCOUNT_SIZE) != -1){
+			getString(buf, userid, "Password", "", passwordLocal[user_count], ACCOUNT_SIZE);
+
+			/*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
+
+		} else {
+			memcpy(passwordLocal[user_count], "", 1);
+		}
 	}
 
 	free(buf);
