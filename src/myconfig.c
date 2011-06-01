@@ -65,6 +65,7 @@ char userNameLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录�
 char passwordLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的的密码 */
 int user_count = 0; /* 记录读入的账户数 */
 int locaUserFlag = 0; /* 指定要使用的账户id */
+char localUserPath[] = "/home/dave/.mentohust.conf";
 #endif
 char nic[NIC_SIZE] = "";	/* 网卡名 */
 char dataFile[MAX_PATH] = "";	/* 数据文件 */
@@ -179,18 +180,18 @@ void initConfig(int argc, char **argv)
 	saveFlag = (readFile(&daemonMode)==0 ? 0 : 1);
 
 #ifdef LOCAL_CONF
-	if(readLocalFile("/home/dave/.mentohust.conf") == -1)
+	if(readLocalFile(localUserPath) == -1)
 		MENTOHUST_LOG ( "failed to open local configuration\n" );
 #endif
 
 	readArg(argc, argv, &saveFlag, &exitFlag, &daemonMode);
 #ifndef NO_DYLOAD
 	if (load_libpcap() == -1) {
-#ifndef NO_NOTIFY
+	#ifndef NO_NOTIFY
 		if (showNotify && show_notify(_("MentoHUST - 错误提示"),
 			_("载入libpcap失败, 请检查该库文件！"), 1000*showNotify) < 0)
 			showNotify = 0;
-#endif
+	#endif
 		exit(EXIT_FAILURE);
 	}
 #endif
@@ -341,6 +342,38 @@ static int readLocalFile(char *filepath)
 	free(buf);
 	return user_count;
 }
+
+int addLocalAccount(char *filepath)
+{
+	char *buf, 
+			 newuserid[8] = "user",
+			 userid_tail[4] = "";
+
+	printf(_("?? 请输入用户名: "));
+	scanf("%s", userName);
+	printf(_("?? 请输入密码: "));
+	scanf("%s", password);
+
+	if (loadFile(&buf, filepath) < 0) {
+		buf = (char *)malloc(1);
+		buf[0] = '\0';
+	}
+
+	sprintf(userid_tail, "%d", user_count+1);
+	strncpy(&newuserid[4], userid_tail, 4);
+
+	setString(&buf, newuserid, "Username", userName);
+	setString(&buf, newuserid, "Password", password);
+	setInt(&buf, "MentoHUST", "AccountCount", user_count+1);
+
+	if (saveFile(buf, filepath) != 0)
+		printf(_("!! 保存账户到%s失败！\n"), filepath);
+	else
+		printf(_("** 账户%s已成功保存到%s.\n"), userName, filepath);
+
+	free(buf);
+	exit(EXIT_SUCCESS);
+}
 #endif
 
 static void readArg(char argc, char **argv, int *saveFlag, int *exitFlag, int *daemonMode)
@@ -359,6 +392,10 @@ static void readArg(char argc, char **argv, int *saveFlag, int *exitFlag, int *d
             printSuConfig(str+2);
             exit(EXIT_SUCCESS);
         }
+#ifdef LOCAL_CONF
+		else if (c == 'A')
+			addLocalAccount(localUserPath);
+#endif
 		else if (c == 'w')
 			*saveFlag = 1;
 		else if (c == 'k') {
@@ -432,6 +469,9 @@ static void showHelp(const char *fileName)
 		"\t-w 保存参数到配置文件\n"
 		"\t-u 用户名\n"
 		"\t-p 密码\n"
+#ifdef LOCAL_CONF
+		"\t-A 添加本地账户\n"
+#endif
 		"\t-n 网卡名\n"
 		"\t-i IP[默认本机IP]\n"
 		"\t-m 子网掩码[默认本机掩码]\n"
