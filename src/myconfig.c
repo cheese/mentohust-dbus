@@ -323,17 +323,16 @@ static int readLocalFile(char *filepath)
 		return -1;
 
 	read_count = getInt(buf, "MentoHUST", "AccountCount", 0);
-	/*MENTOHUST_LOG ("AccountCount read:%d", read_count);*/
 
-	for(user_count = 0; user_count < read_count; user_count++)
+  /*userNameLocal[0]存的是默认帐号*/
+	for(user_count = 1; user_count < read_count; user_count++)
 	{
-		sprintf(userid_tail, "%d", user_count+1);
+		sprintf(userid_tail, "%d", user_count);
 		strncpy(&userid[4], userid_tail, 4);
 		if(getString(buf, userid, "Username", "", userNameLocal[user_count], ACCOUNT_SIZE) != -1){
 			getString(buf, userid, "Password", "", passwordLocal[user_count], ACCOUNT_SIZE);
 
-			/*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
-
+      /*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
 		} else {
 			memcpy(passwordLocal[user_count], "", 1);
 		}
@@ -348,6 +347,7 @@ int addLocalAccount(char *filepath)
 	char *buf, 
 			 newuserid[8] = "user",
 			 userid_tail[4] = "";
+  int empty_acc_nu;   /* 可用的user号 */
 
 	printf(_("?? 请输入用户名: "));
 	scanf("%s", userName);
@@ -359,12 +359,20 @@ int addLocalAccount(char *filepath)
 		buf[0] = '\0';
 	}
 
-	sprintf(userid_tail, "%d", user_count+1);
+  /*找一个未被占有的user号*/
+  for (empty_acc_nu = 1; empty_acc_nu <= user_count; empty_acc_nu++)
+  {
+    if (!strncmp(userNameLocal[empty_acc_nu], "", ACCOUNT_SIZE))
+      break;
+  }
+  
+  sprintf(userid_tail, "%d", empty_acc_nu);
 	strncpy(&newuserid[4], userid_tail, 4);
 
 	setString(&buf, newuserid, "Username", userName);
 	setString(&buf, newuserid, "Password", password);
-	setInt(&buf, "MentoHUST", "AccountCount", user_count+1);
+  if (user_count < empty_acc_nu)
+	  setInt(&buf, "MentoHUST", "AccountCount", user_count+1);
 
 	if (saveFile(buf, filepath) != 0)
 		printf(_("!! 保存账户到%s失败！\n"), filepath);
