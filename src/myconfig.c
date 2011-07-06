@@ -65,7 +65,7 @@ char userNameLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录�
 char passwordLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的的密码 */
 int user_count = 0; /* 记录读入的账户数 */
 int locaUserFlag = 0; /* 指定要使用的账户id */
-char *localUserPath = NULL; /* 本地用户配置文件路径 */
+char localUserPath[MAX_PATH] = ""; /* 本地用户配置文件路径 */
 #endif
 char nic[NIC_SIZE] = "";	/* 网卡名 */
 char dataFile[MAX_PATH] = "";	/* 数据文件 */
@@ -182,9 +182,8 @@ void initConfig(int argc, char **argv)
 	saveFlag = (readFile(&daemonMode)==0 ? 0 : 1);
 	readArg(argc, argv, &saveFlag, &exitFlag, &daemonMode);
 #ifdef LOCAL_CONF
-	if(localUserPath)
-		if(readLocalFile(localUserPath) == -1)
-			printf(_( "打开本地配置文件失败！\n" ));
+	if(readLocalFile(localUserPath) == -1)
+		printf(_( "打开本地配置文件失败！\n" ));
 #endif
 #ifndef NO_DYLOAD
 	if (load_libpcap() == -1) {
@@ -279,6 +278,9 @@ static int readFile(int *daemonMode)
 #endif
 	getString(buf, "MentoHUST", "Nic", "", nic, sizeof(nic));
 	getString(buf, "MentoHUST", "Datafile", "", dataFile, sizeof(dataFile));
+#ifdef LOCAL_CONF
+	getString(buf, "MentoHUST", "LocalConf", "", localUserPath, sizeof(localUserPath));
+#endif
 	getString(buf, "MentoHUST", "DhcpScript", "", dhcpScript, sizeof(dhcpScript));
 	getString(buf, "MentoHUST", "Version", "", tmp, sizeof(tmp));
 	if (strlen(tmp) >= 3) {
@@ -661,14 +663,8 @@ static int readLocalFile(char *filepath)
 			 userid[8] = "user";
 	int read_count = 0;
 
-	if(!localUserPath) 
+	if(loadFile(&buf, filepath) < 0)
 		return -1;
-
-	if(loadFile(&buf, filepath) < 0){
-		if (filepath == localUserPath)
-			free(filepath);
-		return -1;
-	}
 
 	read_count = getInt(buf, "MentoHUST", "AccountCount", 0);
 
@@ -680,15 +676,13 @@ static int readLocalFile(char *filepath)
 		if(getString(buf, userid, "Username", "", userNameLocal[user_count], ACCOUNT_SIZE) != -1){
 			getString(buf, userid, "Password", "", passwordLocal[user_count], ACCOUNT_SIZE);
 
-		/*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
+		MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);
 		} else {
 			memcpy(passwordLocal[user_count], "", 1);
 		}
 	}
 
 	free(buf);
-	if (filepath == localUserPath)
-		free(filepath);
 	return user_count;
 }
 
@@ -737,10 +731,14 @@ void setLocalConfigPath(char *path)
 {
 	struct stat st;
 	stat(path, &st);
-	if(S_ISDIR(st.st_mode)){
+
+	if (!path)
+		return;
+
+	if (S_ISDIR(st.st_mode)){
 		char *filepath = NULL;
 		filepath = malloc(strlen(path)+18);
-		if(!filepath)
+		if (!filepath)
 			return;
 		strncpy(filepath, path, strlen(path)+1);
 		strncat(filepath, "/.mentohust.conf", 17);
@@ -753,7 +751,6 @@ void setLocalConfigPath(char *path)
 
 inline void setLocalConfigFilePath(char *path)
 {
-	localUserPath = (char *)malloc(strlen(path)+1);
 	strncpy(localUserPath, path, strlen(path)+1);
 }
 #endif
