@@ -65,7 +65,7 @@ char userNameLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录�
 char passwordLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的的密码 */
 int user_count = 0; /* 记录读入的账户数 */
 int locaUserFlag = 0; /* 指定要使用的账户id */
-char localUserPath[] = "/home/dave/.mentohust.conf";
+char *localUserPath = NULL; /* 本地用户配置文件路径 */
 #endif
 char nic[NIC_SIZE] = "";	/* 网卡名 */
 char dataFile[MAX_PATH] = "";	/* 数据文件 */
@@ -88,6 +88,8 @@ int lockfd = -1;	/* 锁文件描述符 */
 
 static int readFile(int *daemonMode);	/* 读取配置文件来初始化 */
 #ifdef LOCAL_CONF
+static void setLocalConfigPath(char *);
+inline void setLocalConfigFilePath(char *);
 static int readLocalFile(char *filepath);	/* 读取当前用户的配置文件 返回读取的账户数*/
 #endif
 static void readArg(char argc, char **argv, int *saveFlag, int *exitFlag, int *daemonMode);	/* 读取命令行参数来初始化 */
@@ -178,13 +180,12 @@ void initConfig(int argc, char **argv)
 			"人到华中大，有甜亦有辣。明德厚学地，求是创新家。\n"
 			"Bug report to %s\n\n"), VERSION, PACKAGE_BUGREPORT);
 	saveFlag = (readFile(&daemonMode)==0 ? 0 : 1);
-
-#ifdef LOCAL_CONF
-	if(readLocalFile(localUserPath) == -1)
-		MENTOHUST_LOG ( "failed to open local configuration\n" );
-#endif
-
 	readArg(argc, argv, &saveFlag, &exitFlag, &daemonMode);
+#ifdef LOCAL_CONF
+	if(localUserPath)
+		if(readLocalFile(localUserPath) == -1)
+			printf(_( "打开本地配置文件失败！\n" ));
+#endif
 #ifndef NO_DYLOAD
 	if (load_libpcap() == -1) {
 	#ifndef NO_NOTIFY
@@ -312,77 +313,6 @@ static int readFile(int *daemonMode)
 	return 0;
 }
 
-#ifdef LOCAL_CONF
-static int readLocalFile(char *filepath)
-{
-	char *buf, userid_tail[4], 
-			 userid[8] = "user";
-	int read_count = 0;
-
-	if (loadFile(&buf, filepath) < 0)
-		return -1;
-
-	read_count = getInt(buf, "MentoHUST", "AccountCount", 0);
-
-  /*userNameLocal[0]存的是默认帐号*/
-	for(user_count = 1; user_count < read_count; user_count++)
-	{
-		sprintf(userid_tail, "%d", user_count);
-		strncpy(&userid[4], userid_tail, 4);
-		if(getString(buf, userid, "Username", "", userNameLocal[user_count], ACCOUNT_SIZE) != -1){
-			getString(buf, userid, "Password", "", passwordLocal[user_count], ACCOUNT_SIZE);
-
-      /*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
-		} else {
-			memcpy(passwordLocal[user_count], "", 1);
-		}
-	}
-
-	free(buf);
-	return user_count;
-}
-
-int addLocalAccount(char *filepath)
-{
-	char *buf, 
-			 newuserid[8] = "user",
-			 userid_tail[4] = "";
-  int empty_acc_nu;   /* 可用的user号 */
-
-	printf(_("?? 请输入用户名: "));
-	scanf("%s", userName);
-	printf(_("?? 请输入密码: "));
-	scanf("%s", password);
-
-	if (loadFile(&buf, filepath) < 0) {
-		buf = (char *)malloc(1);
-		buf[0] = '\0';
-	}
-
-  /*找一个未被占有的user号*/
-  for (empty_acc_nu = 1; empty_acc_nu <= user_count; empty_acc_nu++)
-  {
-    if (!strncmp(userNameLocal[empty_acc_nu], "", ACCOUNT_SIZE))
-      break;
-  }
-  
-  sprintf(userid_tail, "%d", empty_acc_nu);
-	strncpy(&newuserid[4], userid_tail, 4);
-
-	setString(&buf, newuserid, "Username", userName);
-	setString(&buf, newuserid, "Password", password);
-  if (user_count < empty_acc_nu)
-	  setInt(&buf, "MentoHUST", "AccountCount", user_count+1);
-
-	if (saveFile(buf, filepath) != 0)
-		printf(_("!! 保存账户到%s失败！\n"), filepath);
-	else
-		printf(_("** 账户%s已成功保存到%s.\n"), userName, filepath);
-
-	free(buf);
-	exit(EXIT_SUCCESS);
-}
-#endif
 
 static void readArg(char argc, char **argv, int *saveFlag, int *exitFlag, int *daemonMode)
 {
@@ -403,6 +333,8 @@ static void readArg(char argc, char **argv, int *saveFlag, int *exitFlag, int *d
 #ifdef LOCAL_CONF
 		else if (c == 'A')
 			addLocalAccount(localUserPath);
+		else if (c == 'C')
+			setLocalConfigPath(str+2);
 #endif
 		else if (c == 'w')
 			*saveFlag = 1;
@@ -479,6 +411,8 @@ static void showHelp(const char *fileName)
 		"\t-p 密码\n"
 #ifdef LOCAL_CONF
 		"\t-A 添加本地账户\n"
+		"\t-C 指定本地配置路径，若给定目录则自动搜索默认配置文件“.mentohust.conf”\n"
+		"\t   (如-C/home/bob 或-C/home/bob/.mentohust.conf)\n"
 #endif
 		"\t-n 网卡名\n"
 		"\t-i IP[默认本机IP]\n"
@@ -718,3 +652,108 @@ error_exit:
 #endif
 	exit(EXIT_FAILURE);
 }
+
+#ifdef LOCAL_CONF
+/*若打开文件失败，则返回-1，否则返回读入的账户个数*/
+static int readLocalFile(char *filepath)
+{
+	char *buf, userid_tail[4], 
+			 userid[8] = "user";
+	int read_count = 0;
+
+	if(!localUserPath) 
+		return -1;
+
+	if(loadFile(&buf, filepath) < 0){
+		if (filepath == localUserPath)
+			free(filepath);
+		return -1;
+	}
+
+	read_count = getInt(buf, "MentoHUST", "AccountCount", 0);
+
+  /*userNameLocal[0]存的是默认帐号*/
+	for(user_count = 1; user_count < read_count; user_count++)
+	{
+		sprintf(userid_tail, "%d", user_count);
+		strncpy(&userid[4], userid_tail, 4);
+		if(getString(buf, userid, "Username", "", userNameLocal[user_count], ACCOUNT_SIZE) != -1){
+			getString(buf, userid, "Password", "", passwordLocal[user_count], ACCOUNT_SIZE);
+
+		/*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
+		} else {
+			memcpy(passwordLocal[user_count], "", 1);
+		}
+	}
+
+	free(buf);
+	if (filepath == localUserPath)
+		free(filepath);
+	return user_count;
+}
+
+int addLocalAccount(char *filepath)
+{
+	char *buf, 
+			 newuserid[8] = "user",
+			 userid_tail[4] = "";
+  int empty_acc_nu;   /* 可用的user号 */
+
+	printf(_("?? 请输入用户名: "));
+	scanf("%s", userName);
+	printf(_("?? 请输入密码: "));
+	scanf("%s", password);
+
+	if (loadFile(&buf, filepath) < 0) {
+		buf = (char *)malloc(1);
+		buf[0] = '\0';
+	}
+
+  /*找一个未被占有的user号*/
+  for (empty_acc_nu = 1; empty_acc_nu <= user_count; empty_acc_nu++)
+  {
+    if (!strncmp(userNameLocal[empty_acc_nu], "", ACCOUNT_SIZE))
+      break;
+  }
+  
+  sprintf(userid_tail, "%d", empty_acc_nu);
+	strncpy(&newuserid[4], userid_tail, 4);
+
+	setString(&buf, newuserid, "Username", userName);
+	setString(&buf, newuserid, "Password", password);
+  if (user_count < empty_acc_nu)
+	  setInt(&buf, "MentoHUST", "AccountCount", user_count+1);
+
+	if (saveFile(buf, filepath) != 0)
+		printf(_("!! 保存账户到%s失败！\n"), filepath);
+	else
+		printf(_("** 账户%s已成功保存到%s.\n"), userName, filepath);
+
+	free(buf);
+	exit(EXIT_SUCCESS);
+}
+
+void setLocalConfigPath(char *path)
+{
+	struct stat st;
+	stat(path, &st);
+	if(S_ISDIR(st.st_mode)){
+		char *filepath = NULL;
+		filepath = malloc(strlen(path)+18);
+		if(!filepath)
+			return;
+		strncpy(filepath, path, strlen(path)+1);
+		strncat(filepath, "/.mentohust.conf", 17);
+		setLocalConfigFilePath(filepath);
+		free(filepath);
+	}
+	else
+		setLocalConfigFilePath(path);
+}
+
+inline void setLocalConfigFilePath(char *path)
+{
+	localUserPath = (char *)malloc(strlen(path)+1);
+	strncpy(localUserPath, path, strlen(path)+1);
+}
+#endif
