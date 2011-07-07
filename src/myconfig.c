@@ -60,11 +60,11 @@ char password[ACCOUNT_SIZE] = "";	/* 密码 */
 #ifdef LOCAL_CONF
 char userNameLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的用户名。
 																												由于配置文件的错误编写，数组里
-																												面可能用空字符串，在添加用户的
-																												时候注意要遍历检查。*/
+																												面可能有空字符串，在添加用户的
+																												时候要遍历检查。*/
 char passwordLocal[ACCOUNT_NUM][ACCOUNT_SIZE] = {""};	/* 当前用户所记录的账户的的密码 */
-int user_count = 0; /* 记录读入的账户数 */
-int locaUserFlag = 0; /* 指定要使用的账户id */
+int user_count = 0; /* 记录读入的账户数，其实就是read_count */
+int locaUserFlag = 0; /* 指定要使用的账户id，0就是默认主配置文件的账户 */
 char localUserPath[MAX_PATH] = ""; /* 本地用户配置文件路径 */
 #endif
 char nic[NIC_SIZE] = "";	/* 网卡名 */
@@ -88,9 +88,11 @@ int lockfd = -1;	/* 锁文件描述符 */
 
 static int readFile(int *daemonMode);	/* 读取配置文件来初始化 */
 #ifdef LOCAL_CONF
+static int readLocalFile(char *filepath);	/* 读取当前用户的配置文件 返回读取的账户数*/
+int addLocalAccount(char *);
+static int haveLocalAccount();
 static void setLocalConfigPath(char *);
 inline void setLocalConfigFilePath(char *);
-static int readLocalFile(char *filepath);	/* 读取当前用户的配置文件 返回读取的账户数*/
 #endif
 static void readArg(char argc, char **argv, int *saveFlag, int *exitFlag, int *daemonMode);	/* 读取命令行参数来初始化 */
 static void showHelp(const char *fileName);	/* 显示帮助信息 */
@@ -210,26 +212,24 @@ void initConfig(int argc, char **argv)
 	if (userName[0]=='\0' || password[0]=='\0')	/* 未写用户名密码？ */
 	{
 #ifdef LOCAL_CONF
-		if (userNameLocal[0][0]=='\0') {
+		/* 主配置文件默认账户为空且未读入任何本地账户 */
+		if (!strncmp(userNameLocal[locaUserFlag], "", 1) || !haveLocalAccount()) {
 #endif
-		saveFlag = 1;
-		printf(_("?? 请输入用户名: "));
-		scanf("%s", userName);
-		printf(_("?? 请输入密码: "));
-		scanf("%s", password);
+			saveFlag = 1;
+			printf(_("?? 请输入用户名: "));
+			scanf("%s", userName);
+			printf(_("?? 请输入密码: "));
+			scanf("%s", password);
+
+			printf(_("?? 请选择组播地址(0标准 1锐捷私有 2赛尔): "));
+			scanf("%u", &startMode);
+			startMode %= 3;
+			printf(_("?? 请选择DHCP方式(0不使用 1二次认证 2认证后 3认证前): "));
+			scanf("%u", &dhcpMode);
+			dhcpMode %= 4;
 #ifdef LOCAL_CONF
-		} else {
-		/*set the first local account as default account*/
-			strncpy(userName, userNameLocal[0], ACCOUNT_SIZE);
-			strncpy(password, passwordLocal[0], ACCOUNT_SIZE);
 		}
 #endif
-		printf(_("?? 请选择组播地址(0标准 1锐捷私有 2赛尔): "));
-		scanf("%u", &startMode);
-		startMode %= 3;
-		printf(_("?? 请选择DHCP方式(0不使用 1二次认证 2认证后 3认证前): "));
-		scanf("%u", &dhcpMode);
-		dhcpMode %= 4;
 	}
 	checkRunning(exitFlag, daemonMode);
 	if (startMode%3==2 && gateway==0)	/* 赛尔且未填写网关地址 */
@@ -249,7 +249,6 @@ void initConfig(int argc, char **argv)
 #endif
 		exit(EXIT_FAILURE);
 	}
-
 
 	if (saveFlag)
 		saveConfig(daemonMode);
@@ -276,11 +275,13 @@ static int readFile(int *daemonMode)
 		saveFile(buf, CFG_FILE);
 	}
 #endif
-	getString(buf, "MentoHUST", "Nic", "", nic, sizeof(nic));
-	getString(buf, "MentoHUST", "Datafile", "", dataFile, sizeof(dataFile));
 #ifdef LOCAL_CONF
+	strncpy(userNameLocal[0], userName, sizeof(userName));
+	strncpy(passwordLocal[0], password, sizeof(password));
 	getString(buf, "MentoHUST", "LocalConf", "", localUserPath, sizeof(localUserPath));
 #endif
+	getString(buf, "MentoHUST", "Nic", "", nic, sizeof(nic));
+	getString(buf, "MentoHUST", "Datafile", "", dataFile, sizeof(dataFile));
 	getString(buf, "MentoHUST", "DhcpScript", "", dhcpScript, sizeof(dhcpScript));
 	getString(buf, "MentoHUST", "Version", "", tmp, sizeof(tmp));
 	if (strlen(tmp) >= 3) {
@@ -490,14 +491,14 @@ static void printConfig()
 	char *dhcp[] = {_("不使用"), _("二次认证"), _("认证后"), _("认证前")};
 #ifdef LOCAL_CONF
 	int i = 0;
-	printf(_("** 默认账户:\t%s\n"), userName);
-	for (i = 0; i<user_count; i++)
+	printf(_("** 默认账户:\t%s\n"), userNameLocal[locaUserFlag]);
+	MENTOHUST_LOG ("主配置文件账户：%s", userNameLocal[0]);
+	for (i = 1; i <= user_count; i++)
 	{
-		MENTOHUST_LOG ("账户%d：%s", i+1, userNameLocal[i]);
+		MENTOHUST_LOG ("本地账户%d：%s", i, userNameLocal[i]);
 	}
 #else
 	printf(_("** 用户名:\t%s\n"), userName);
-	/* printf("** 密码:\t%s\n", password); */
 #endif
 	printf(_("** 网卡: \t%s\n"), nic);
 	if (gateway)
@@ -519,6 +520,9 @@ static void printConfig()
 #endif
 	if (bufType >= 2)
 		printf(_("** 数据文件:\t%s\n"), dataFile);
+#ifdef LOCAL_CONF
+		printf(_("** 用户配置文件:%s\n"), localUserPath);
+#endif
 	if (dhcpMode != 0)
 		printf(_("** DHCP脚本:\t%s\n"), dhcpScript);
 }
@@ -668,19 +672,25 @@ static int readLocalFile(char *filepath)
 
 	read_count = getInt(buf, "MentoHUST", "AccountCount", 0);
 
-  /*userNameLocal[0]存的是默认帐号*/
-	for(user_count = 1; user_count < read_count; user_count++)
+	user_count = 0;
+	/*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
+	/* 下标0存放的是默认账户，在读主配置文件时已存入 */
+	do
 	{
+		user_count++;
 		sprintf(userid_tail, "%d", user_count);
 		strncpy(&userid[4], userid_tail, 4);
-		if(getString(buf, userid, "Username", "", userNameLocal[user_count], ACCOUNT_SIZE) != -1){
+		if (getString(buf, userid, "Username", "", userNameLocal[user_count], ACCOUNT_SIZE) != -1){
 			getString(buf, userid, "Password", "", passwordLocal[user_count], ACCOUNT_SIZE);
-
-		MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);
+			/* 指定第一个本地账户为默认账户 */
+			if (locaUserFlag == 0)
+				locaUserFlag = user_count;
+		/*MENTOHUST_LOG ("用户%d:%s读入", user_count, userNameLocal[user_count]);*/
 		} else {
 			memcpy(passwordLocal[user_count], "", 1);
 		}
-	}
+	}while(user_count < read_count);
+	/*MENTOHUST_LOG ( "读入账户数：%d\n", user_count );*/
 
 	free(buf);
 	return user_count;
@@ -703,13 +713,7 @@ int addLocalAccount(char *filepath)
 		buf[0] = '\0';
 	}
 
-  /*找一个未被占有的user号*/
-  for (empty_acc_nu = 1; empty_acc_nu <= user_count; empty_acc_nu++)
-  {
-    if (!strncmp(userNameLocal[empty_acc_nu], "", ACCOUNT_SIZE))
-      break;
-  }
-  
+	empty_acc_nu = getFreeUserNum();
   sprintf(userid_tail, "%d", empty_acc_nu);
 	strncpy(&newuserid[4], userid_tail, 4);
 
@@ -725,6 +729,30 @@ int addLocalAccount(char *filepath)
 
 	free(buf);
 	exit(EXIT_SUCCESS);
+}
+
+static int haveLocalAccount()
+{
+	int i;
+	for (i = 1; i <= user_count; i++)
+	{
+		if (strncmp(userNameLocal[i], "", ACCOUNT_SIZE))
+			return 1;
+	}
+	return 0;
+}
+
+/*找一个未被占有的user号，而不是数组下标*/
+int getFreeUserNum()
+{
+  int empty_acc_nu;   /* 可用的user号 */
+
+  for (empty_acc_nu = 1; empty_acc_nu <= user_count; empty_acc_nu++)
+	{
+		if (!strncmp(userNameLocal[empty_acc_nu-1], "", ACCOUNT_SIZE))
+			break;
+	}
+	return empty_acc_nu;
 }
 
 void setLocalConfigPath(char *path)

@@ -189,7 +189,7 @@ static int sendIdentityPacket()
 #ifdef LOCAL_CONF
 	int nameLen = strlen(userNameLocal[locaUserFlag]);
 	MENTOHUST_LOG ("当前使用账户：");
-	MENTOHUST_LOG ("账户%d：%s", locaUserFlag+1, userNameLocal[locaUserFlag]);
+	MENTOHUST_LOG ("账户%d：%s", locaUserFlag, userNameLocal[locaUserFlag]);
 #else
 	int nameLen = strlen(userName);
 #endif

@@ -50,6 +50,12 @@ static void getLine(const char *buf, int inStart, int *lineStart, int *lineEnd)
 	*lineEnd = end;
 }
 
+/* 寻找配置文件中某个键值的值，其中：
+ * section 为要找的键值所在的区域，如MentoHUST 
+ * key 为要找的键值的键名
+ * *sectionStart 为要找的键值所在区域在buf中的起始地址 
+ * *valueStart 为要找的键值的值在buf中的起始地址
+ * *valueSize 为要找的键值的值的长度 */
 static int findKey(const char *buf, const char *section, const char *key,
 	int *sectionStart, int *valueStart, unsigned long *valueSize)
 {
