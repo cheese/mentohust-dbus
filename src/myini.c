@@ -116,6 +116,7 @@ int getInt(const char *buf, const char *section, const char *key, int defaultVal
 	return atoi(value);
 }
 
+/*当section找到，key = NULL, value = NULL时：删除section*/
 void setString(char **buf, const char *section, const char *key, const char *value)
 {
 	int sectionStart, valueStart;
